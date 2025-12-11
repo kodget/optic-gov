@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session
 from database import get_db, Contractor, Project, Milestone
 from auth import hash_password, verify_password, create_access_token, verify_token
 from typing import List, Optional
+import requests
+import tempfile
+import shutil
 
 load_dotenv()
 
@@ -22,6 +25,13 @@ model = genai.GenerativeModel('gemini-2.0-flash-exp')
 w3 = Web3(Web3.HTTPProvider(os.getenv("SEPOLIA_RPC_URL")))
 private_key = os.getenv("ETHEREUM_PRIVATE_KEY")
 contract_address = os.getenv("CONTRACT_ADDRESS")
+
+# Verify connections on startup
+print(f"Web3 connected: {w3.is_connected()}")
+print(f"Contract address: {contract_address}")
+print(f"Oracle wallet: {os.getenv('ORACLE_WALLET_ADDRESS')}")
+print(f"Gemini API configured: {'✓' if os.getenv('GEMINI_API_KEY') else '✗'}")
+print(f"Database URL: {os.getenv('DATABASE_URL')}")
 
 class ContractorRegister(BaseModel):
     wallet_address: str
@@ -37,6 +47,7 @@ class VerificationRequest(BaseModel):
     video_url: str
     milestone_criteria: str
     project_id: int
+    milestone_index: int
 
 class ProjectCreate(BaseModel):
     name: str
@@ -144,7 +155,20 @@ async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
 
 @app.post("/verify-milestone", response_model=VerificationResponse)
 async def verify_milestone(request: VerificationRequest, wallet_address: str = Depends(verify_token)):
+    temp_file_path = None
     try:
+        # Download video from IPFS URL to temporary file
+        response_video = requests.get(request.video_url, stream=True)
+        response_video.raise_for_status()
+        
+        # Create temporary file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        temp_file_path = temp_file.name
+        
+        # Save video to temp file
+        with open(temp_file_path, 'wb') as f:
+            shutil.copyfileobj(response_video.raw, f)
+        
         # Gemini prompt for construction verification
         prompt = f"""You are an expert civil engineer and strict auditor. Your job is to verify construction milestones from video footage. You must be skeptical.
 
@@ -159,8 +183,8 @@ Return ONLY a JSON object:
 "reasoning": "string (max 1 sentence explaining why)"
 }}"""
 
-        # Upload video and analyze
-        video_file = genai.upload_file(request.video_url)
+        # Upload local video file and analyze
+        video_file = genai.upload_file(temp_file_path)
         response = model.generate_content([prompt, video_file])
         
         # Parse Gemini response
@@ -168,21 +192,26 @@ Return ONLY a JSON object:
         
         # If verified, trigger blockchain transaction
         if result["verified"] and result["confidence_score"] >= 95:
-            await release_funds(request.project_id)
+            await release_funds(request.project_id, request.milestone_index)
         
         return VerificationResponse(**result)
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # Clean up temporary file
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
 
-async def release_funds(project_id: int):
+async def release_funds(project_id: int, milestone_index: int):
     """Trigger smart contract to release milestone funds"""
     try:
-        # Contract ABI (minimal for releaseMilestone function)
+        # Contract ABI (updated for releaseMilestone function)
         contract_abi = [
             {
                 "inputs": [
                     {"name": "_projectId", "type": "uint256"},
+                    {"name": "_milestoneIndex", "type": "uint256"},
                     {"name": "_verdict", "type": "bool"}
                 ],
                 "name": "releaseMilestone",
@@ -195,7 +224,7 @@ async def release_funds(project_id: int):
         account = w3.eth.account.from_key(private_key)
         
         # Build transaction
-        transaction = contract.functions.releaseMilestone(project_id, True).build_transaction({
+        transaction = contract.functions.releaseMilestone(project_id, milestone_index, True).build_transaction({
             'from': account.address,
             'gas': 100000,
             'gasPrice': w3.to_wei('20', 'gwei'),

@@ -73,6 +73,7 @@ class ProjectCreate(BaseModel):
     project_longitude: float
     location_tolerance_km: float = 1.0
     gov_wallet: str
+    on_chain_id: int
 
 class MilestoneGenerate(BaseModel):
     project_description: str
@@ -160,7 +161,8 @@ async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
         project_latitude=project.project_latitude,
         project_longitude=project.project_longitude,
         location_tolerance_km=project.location_tolerance_km,
-        gov_wallet=project.gov_wallet
+        gov_wallet=project.gov_wallet,
+        on_chain_id=project.on_chain_id
     )
     db.add(db_project)
     db.commit()
@@ -283,7 +285,7 @@ Return ONLY a JSON object:
         
         # If verified, trigger blockchain transaction
         if result["verified"] and result["confidence_score"] >= 95:
-            await release_funds(request.project_id, request.milestone_index)
+            await release_funds(project.on_chain_id, request.milestone_index)
         
         return VerificationResponse(**result)
         

@@ -35,6 +35,7 @@ class Project(Base):
     project_latitude = Column(Float)
     project_longitude = Column(Float)
     location_tolerance_km = Column(Float, default=1.0)
+    on_chain_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     milestones = relationship("Milestone", back_populates="project")

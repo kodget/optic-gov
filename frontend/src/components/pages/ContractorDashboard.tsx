@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { apiClient } from '../../services/api';
 
 interface Project {
   id: string;

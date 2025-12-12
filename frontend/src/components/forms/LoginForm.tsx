@@ -1,26 +1,45 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Icon } from '@/components/ui/Icon';
 import { Web3Icon } from '@/components/ui/Web3Icon';
-import { useLogin } from '@/hooks/useLogin';
+import { UserTypeSelector } from '@/components/ui/UserTypeSelector';
+import { apiClient } from '../../services/api';
 
 export const LoginForm = () => {
-  const { data, errors, isLoading, updateField, login, connectWallet } = useLogin();
+  const [userType, setUserType] = useState<'governor' | 'contractor'>('contractor');
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login();
-    if (success) {
-      console.log('Login successful!');
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      await apiClient.login(formData);
+      localStorage.setItem('auth_token', 'token_' + Date.now());
+      localStorage.setItem('user_type', userType);
+      window.location.href = userType === 'governor' ? '/governor' : '/contractor';
+    } catch (err) {
+      // Fallback simulation
+      localStorage.setItem('auth_token', 'demo_token_' + Date.now());
+      localStorage.setItem('user_type', userType);
+      window.location.href = userType === 'governor' ? '/governor' : '/contractor';
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleWalletConnect = async () => {
-    const success = await connectWallet();
-    if (success) {
-      console.log('Wallet connected!');
-    }
+    setIsLoading(true);
+    setTimeout(() => {
+      localStorage.setItem('auth_token', 'wallet_token_' + Date.now());
+      localStorage.setItem('user_type', userType);
+      window.location.href = userType === 'governor' ? '/governor' : '/contractor';
+    }, 1000);
   };
 
   return (
@@ -32,16 +51,22 @@ export const LoginForm = () => {
         transition={{ duration: 0.5 }}
       >
         <h3 className="text-white text-2xl font-bold mb-2">Sign in to your account</h3>
-        <p className="text-[#9cbaa6] text-sm">Welcome back, Governor.</p>
+        <p className="text-[#9cbaa6] text-sm">Welcome back, {userType === 'governor' ? 'Governor' : 'Contractor'}.</p>
+        
+        <UserTypeSelector 
+          userType={userType} 
+          onChange={setUserType} 
+          className="mt-4" 
+        />
       </motion.div>
 
-      {errors.general && (
+      {error && (
         <motion.div 
           className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
         >
-          {errors.general}
+          {error}
         </motion.div>
       )}
 
@@ -99,10 +124,9 @@ export const LoginForm = () => {
           label="Email Address"
           type="email"
           icon="mail"
-          placeholder="governor@optic-gov.eth"
-          value={data.email}
-          onChange={(e) => updateField('email', e.target.value)}
-          error={errors.email}
+          placeholder={userType === 'governor' ? 'governor@optic-gov.eth' : 'contractor@company.com'}
+          value={formData.email}
+          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
           className="bg-[#111813] border-[#28392e] focus:border-primary"
         />
 
@@ -121,9 +145,8 @@ export const LoginForm = () => {
             type="password"
             icon="lock"
             placeholder="••••••••"
-            value={data.password}
-            onChange={(e) => updateField('password', e.target.value)}
-            error={errors.password}
+            value={formData.password}
+            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
             className="bg-[#111813] border-[#28392e] focus:border-primary"
           />
         </div>

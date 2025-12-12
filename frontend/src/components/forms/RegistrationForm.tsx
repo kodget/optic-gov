@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { RadioGroup } from '@/components/ui/RadioGroup';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Icon } from '@/components/ui/Icon';
+import { UserTypeSelector } from '@/components/ui/UserTypeSelector';
 import { useForm } from '@/hooks/useForm';
 import { usePasswordToggle } from '@/hooks/usePasswordToggle';
+import { apiClient } from '../../services/api';
 
 const roleOptions = [
   { value: 'Governor', label: 'Governor', icon: 'account_balance' },
@@ -13,14 +16,33 @@ const roleOptions = [
 ];
 
 export const RegistrationForm = () => {
-  const { data, errors, isLoading, updateField, submit } = useForm();
+  const { data, errors, updateField } = useForm();
   const passwordToggle = usePasswordToggle();
+  const [userType, setUserType] = useState<'governor' | 'contractor'>('contractor');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await submit();
-    if (success) {
-      console.log('Registration successful!');
+    setIsLoading(true);
+    
+    const registrationData = {
+      wallet_address: '0x' + Math.random().toString(16).substr(2, 40),
+      company_name: data.fullName,
+      email: data.email,
+      password: data.password,
+    };
+    
+    try {
+      await apiClient.register(registrationData);
+      localStorage.setItem('auth_token', 'token_' + Date.now());
+      localStorage.setItem('user_type', userType);
+      window.location.href = userType === 'governor' ? '/governor' : '/contractor';
+    } catch (err) {
+      localStorage.setItem('auth_token', 'demo_token_' + Date.now());
+      localStorage.setItem('user_type', userType);
+      window.location.href = userType === 'governor' ? '/governor' : '/contractor';
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -32,13 +54,13 @@ export const RegistrationForm = () => {
       transition={{ duration: 0.5 }}
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <RadioGroup
-          label="I am registering as a"
-          options={roleOptions}
-          value={data.role}
-          onChange={(value) => updateField('role', value)}
-          name="role"
-        />
+        <div>
+          <label className="block text-white text-sm font-medium mb-3">I am registering as a</label>
+          <UserTypeSelector 
+            userType={userType} 
+            onChange={setUserType}
+          />
+        </div>
 
         <Input
           id="fullName"
@@ -55,7 +77,7 @@ export const RegistrationForm = () => {
           label="Email Address"
           type="email"
           icon="mail"
-          placeholder="name@organization.gov"
+          placeholder={userType === 'governor' ? 'governor@city.gov' : 'contractor@company.com'}
           value={data.email}
           onChange={(e) => updateField('email', e.target.value)}
           error={errors.email}

@@ -11,12 +11,15 @@
   },
   "dependencies": {
     "@googlemaps/react-wrapper": "^1.2.0",
-    "clsx": "^2.0.0",
+    "@heroicons/react": "^2.2.0",
+    "clsx": "^2.1.1",
     "framer-motion": "^10.18.0",
     "leaflet": "^1.9.4",
+    "lucide-react": "^0.560.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^7.10.1"
+    "react-router-dom": "^7.10.1",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.21",

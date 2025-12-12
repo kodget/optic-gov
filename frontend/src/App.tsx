@@ -16,6 +16,9 @@ import { GovernorMapDashboard } from '@/components/pages/GovernorMapDashboard';
 import { ContractorDashboard } from '@/components/pages/ContractorDashboard';
 import { MilestoneSubmission } from '@/components/pages/MilestoneSubmission';
 import { ContractorProjectView } from '@/components/pages/ContractorProjectView';
+import { CreateProjectPage } from './components/pages/CreateProjectPage';
+import { MilestoneGeneratorPage } from './components/pages/MilestoneGeneratorPage';
+import { HealthCheckPage } from './components/pages/HealthCheckPage';
 
 const HomePage = () => (
   <div className="relative flex h-auto min-h-screen w-full flex-col">
@@ -46,6 +49,9 @@ function App() {
         <Route path="/contractor" element={<ContractorDashboard />} />
         <Route path="/contractor/milestone/:milestoneId" element={<MilestoneSubmission />} />
         <Route path="/contractor/project/:projectId" element={<ContractorProjectView />} />
+        <Route path="/create-project" element={<CreateProjectPage />} />
+        <Route path="/generate-milestones" element={<MilestoneGeneratorPage />} />
+        <Route path="/health" element={<HealthCheckPage />} />
       </Routes>
     </Router>
   );

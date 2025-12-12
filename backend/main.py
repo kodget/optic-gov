@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import google.generativeai as genai
 from web3 import Web3
@@ -19,6 +20,15 @@ from geopy.distance import geodesic
 load_dotenv()
 
 app = FastAPI(title="Optic-Gov AI Oracle")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Configure Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -62,6 +72,7 @@ class ProjectCreate(BaseModel):
     project_latitude: float
     project_longitude: float
     location_tolerance_km: float = 1.0
+    gov_wallet: str
 
 class MilestoneGenerate(BaseModel):
     project_description: str
@@ -148,7 +159,8 @@ async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
         ai_generated=project.use_ai_milestones,
         project_latitude=project.project_latitude,
         project_longitude=project.project_longitude,
-        location_tolerance_km=project.location_tolerance_km
+        location_tolerance_km=project.location_tolerance_km,
+        gov_wallet=project.gov_wallet
     )
     db.add(db_project)
     db.commit()
